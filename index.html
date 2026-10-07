@@ -142,6 +142,10 @@ input[type=text]:focus,textarea:focus{outline:none;background:#fff;box-shadow:3p
 .boat{position:absolute;top:-22px;left:0;transform:translateX(-50%);font-size:24px;transition:left .3s;filter:drop-shadow(1px 1px 0 #fff)}
 .ptxt{max-width:820px;margin:6px auto 0;display:flex;justify-content:space-between;color:#fff;font-weight:900;font-size:13px;letter-spacing:1px}
 
+.teach-only[hidden]{display:none}
+.nurse-note{margin-top:22px;background:var(--ink);color:#fff;font-weight:700;font-size:15px;border-radius:12px;padding:12px 16px;text-align:center}
+.nurse-note[hidden]{display:none}
+
 /* ---------- Submit ---------- */
 .submit-bar{text-align:center;margin-top:30px}
 .btn{font:inherit;font-weight:900;font-size:22px;letter-spacing:4px;color:#fff;background:var(--ink);border:3px solid var(--ink);
@@ -229,16 +233,18 @@ pre.demo{text-align:left;background:var(--white);border:2px solid var(--ink);bor
     <div id="secA"></div>
   </section>
 
-  <!-- 03 臨床教學 -->
-  <section class="paper">
+  <div class="nurse-note" id="nurseNote" hidden>✅ 護理長只需評核「專業素養與團隊合作」，填完上方即可送出。</div>
+
+  <!-- 03 臨床教學（護理長不需填寫） -->
+  <section class="paper teach-only">
     <div class="sec-head"><div class="no">03</div><h2><span>臨床教學表現</span></h2></div>
     <p class="sec-desc">請評估該位總醫師在臨床教學上的表現。</p>
     <div class="quick">快速填入：<button type="button" data-fill="B" data-v="非常滿意">全部非常滿意</button><button type="button" data-fill="B" data-v="滿意">全部滿意</button></div>
     <div id="secB"></div>
   </section>
 
-  <!-- 04 整體與回饋 -->
-  <section class="paper">
+  <!-- 04 整體與回饋（護理長不需填寫） -->
+  <section class="paper teach-only">
     <div class="sec-head"><div class="no">04</div><h2><span>整體評價與回饋</span></h2></div>
     <div class="q" data-q="overall">
       <div class="q-title"><span class="chip-no">總評</span><span>您認為此位住院醫師整體教學能力如何？ <span class="req">*</span></span></div>
@@ -310,7 +316,12 @@ $("#secB").innerHTML = SEC_B.map(([t,d],i)=>`
   <div class="q" data-q="b${i}"><div class="q-title"><span class="chip-no">B${i+1}</span><span>${t} <span class="req">*</span><small>${d}</small></span></div>
   <div class="opts">${opts("b"+i, SAT)}</div></div>`).join("");
 
-const REQUIRED = ["evaluator","role", ...SEC_A.map((_,i)=>"a"+i), ...SEC_B.map((_,i)=>"b"+i), "overall"];
+// 護理長只評「專業素養與團隊合作」，不需填臨床教學與整體評價
+const NURSE_ONLY_A = ["護理長"];
+const isAOnly = () => NURSE_ONLY_A.includes(val("role"));
+const REQ_BASE = ["evaluator","role", ...SEC_A.map((_,i)=>"a"+i)];
+const REQ_TEACH = [...SEC_B.map((_,i)=>"b"+i), "overall"];
+const required = () => isAOnly() ? REQ_BASE : [...REQ_BASE, ...REQ_TEACH];
 
 /* ---------------- 受評 CR：網址參數 > Google Sheet「CR排班」 > CONFIG.CR_SCHEDULE ---------------- */
 const params = new URLSearchParams(location.search);
@@ -442,6 +453,10 @@ function val(name){
   return el ? el.value.trim() : "";
 }
 function update(){
+  const aOnly = isAOnly();
+  document.querySelectorAll(".teach-only").forEach(sec => sec.hidden = aOnly);
+  $("#nurseNote").hidden = !aOnly;
+  const REQUIRED = required();
   const total = REQUIRED.length + 1; // +受評人
   let n = val("cr") ? 1 : 0;
   REQUIRED.forEach(k => {
@@ -468,7 +483,7 @@ function toast(msg){ const t=$("#toast"); t.textContent=msg; t.classList.add("sh
 $("#form").addEventListener("submit", async e => {
   e.preventDefault();
   if (!val("cr")){ toast("請先選擇受評 CR"); $("#targetBox").scrollIntoView({behavior:"smooth",block:"center"}); return; }
-  const missing = REQUIRED.filter(k => !val(k));
+  const missing = required().filter(k => !val(k));
   missing.forEach(k => document.querySelector(`[data-q="${k}"]`)?.classList.add("err"));
   if (missing.length){
     toast(`還有 ${missing.length} 題必填未完成`);
@@ -483,10 +498,11 @@ $("#form").addEventListener("submit", async e => {
     "評估者身分": val("role"),
   };
   SEC_A.forEach((t,i) => row[t] = val("a"+i));
-  SEC_B.forEach(([t,d],i) => row[`${t}(${d})`] = val("b"+i));
-  row["您認為此位住院醫師整體教學能力如何？"] = val("overall");
-  row["這位住院醫師教學最好的部分是："] = val("best");
-  row["希望他／她可以再進步的地方是："] = val("improve");
+  const aOnly = isAOnly();   // 護理長：臨床教學與整體評價留空
+  SEC_B.forEach(([t,d],i) => row[`${t}(${d})`] = aOnly ? "" : val("b"+i));
+  row["您認為此位住院醫師整體教學能力如何？"] = aOnly ? "" : val("overall");
+  row["這位住院醫師教學最好的部分是："] = aOnly ? "" : val("best");
+  row["希望他／她可以再進步的地方是："] = aOnly ? "" : val("improve");
 
   // 送出：以背景方式傳給 Google（sendBeacon），不必等 Google 回應，畫面立即切到完成頁
   //       即使評核者馬上關掉頁面，瀏覽器仍會把資料送完
