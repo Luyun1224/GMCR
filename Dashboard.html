@@ -175,14 +175,14 @@ tr.sel td{background:#FDE3CF}
     <div class="grid">
       <section class="card span12">
         <h2><span class="no">01</span>每月 CR 綜合指數比較（依評核者身分）</h2>
-        <p class="desc">每一欄是一個月份的一位 CR。圓點＝各身分的平均，黑色橫槓＝全體；垂直線越長，代表不同身分對他的看法落差越大。點一欄可聚焦該位 CR。</p>
+        <p class="desc">每一欄是一個月份的一位 CR。圓點＝各身分給的平均，黑色橫槓＝全體。點一欄可聚焦該位 CR。</p>
         <div class="legend" id="lgMonthly"></div>
         <div id="chMonthly"></div>
       </section>
 
       <section class="card span12">
         <h2><span class="no">02</span>CR 評核總表</h2>
-        <p class="desc">點欄位標題可排序；點一列可直接切換到該位 CR 看細項。「觀點落差」＝各身分綜合指數的最高與最低差距，≥ 8 分會標示。</p>
+        <p class="desc">點欄位標題可排序；點一列可直接切換到該位 CR 看細項。</p>
         <div class="tbl-wrap"><table id="tbl"></table></div>
       </section>
 
@@ -228,7 +228,7 @@ tr.sel td{background:#FDE3CF}
 
     <p class="note" style="color:#fff;margin-top:22px">
       計分說明：專業素養 10 題原始分數 60–95；臨床教學 9 題 非常滿意=5 … 非常不滿意=1；整體教學能力 優秀=4、良好=3、尚可=2、尚待加強=1。
-      「綜合指數」把三者各自換算成 0–100 後取平均。「各身分等權」先算各身分平均再平均，避免人數多的身分（如 PGY）主導結果。評估者姓名不會出現在儀表板。
+      「綜合指數」把三者各自換算成 0–100 後取平均（護理長只評專業素養，故護理的綜合指數以專業素養計）。「各身分等權」先算各身分平均再平均，避免人數多的身分（如 PGY）主導結果。評估者姓名不會出現在儀表板。
     </p>
   </main>
   <div class="foot">奇美醫院教學部●一般內科</div>
@@ -485,7 +485,7 @@ function renderTable(rows){
   });
   const {k:sk, dir} = state.sort;
   ks.sort((x,y) => { const a=x[sk], b=y[sk]; if (a==null) return 1; if (b==null) return -1; return (typeof a === "string" ? a.localeCompare(b) : a-b) * dir; });
-  const cols = [["month","月份"],["cr","CR"],["n","份數",1],["nA","主治",1],["nP","PGY",1],["nN","護理",1],["a","專業素養",1],["b","臨床教學",1],["exc","優秀率",1],["idx","綜合指數",1],["gap","觀點落差",1]];
+  const cols = [["month","月份"],["cr","CR"],["n","份數",1],["nA","主治",1],["nP","PGY",1],["nN","護理",1],["a","專業素養",1],["b","臨床教學",1],["exc","優秀率",1],["idx","綜合指數",1]];
   const maxIdx = 100;
   let h = `<thead><tr>${cols.map(([k,l,num])=>`<th class="${num?"num":""}" data-k="${k}" ${sk===k?`aria-sort="${dir>0?"ascending":"descending"}"`:""}>${l}</th>`).join("")}</tr></thead><tbody>`;
   ks.forEach(r => {
@@ -493,8 +493,7 @@ function renderTable(rows){
       <td>${monthLong(r.month)}</td><td class="cr-name">${esc(r.cr)}</td><td class="num">${r.n}</td>
       <td class="num">${r.nA||"—"}</td><td class="num">${r.nP||"—"}</td><td class="num">${r.nN||"—"}</td>
       <td class="num">${fmt(r.a)}</td><td class="num">${fmt(r.b,2)}</td><td class="num">${r.exc==null?"—":Math.round(r.exc)+"%"}</td>
-      <td class="num"><span class="idxbar" style="width:${r.idx==null?0:Math.max(2,r.idx/maxIdx*60)}px"></span><b>${fmt(r.idx)}</b></td>
-      <td class="num">${r.gap==null?"—":fmt(r.gap)}${r.gap!=null&&r.gap>=8?'<span class="flag">落差大</span>':""}</td></tr>`;
+      <td class="num"><span class="idxbar" style="width:${r.idx==null?0:Math.max(2,r.idx/maxIdx*60)}px"></span><b>${fmt(r.idx)}</b></td></tr>`;
   });
   h += `</tbody>`;
   $("#tbl").innerHTML = ks.length ? h : `<tr><td class="empty">此條件下沒有資料</td></tr>`;
@@ -540,7 +539,7 @@ function renderHeatmap(rows){
     if (it.sec !== sec){ sec = it.sec; h += `<div class="sec">${sec}</div>`; }
     h += `<div class="rl" title="${esc(it.label)}">${esc(it.label)}</div>`;
     const cell = (v, n, who) => {
-      if (v==null) return `<div class="c na" data-tip="${esc(`<div class='t'>${it.label}</div>${who}：無資料`)}">—</div>`;
+      if (v==null) return `<div class="c na" data-tip="${esc(`<div class='t'>${it.label}</div>${who}：${who==="護理"&&!it.sec.startsWith("專業")?"護理長不評核此部分":"無資料"}`)}">${who==="護理"&&!it.sec.startsWith("專業")?"不評":"—"}</div>`;
       const c = heatColor(it.norm(v));
       return `<div class="c" tabindex="0" style="background:${c.bg};color:${c.fg}" data-tip="${esc(`<div class='t'>${it.label}</div>`+tipRow(c.bg, fmt(v,it.d), `${who}${n!=null?`（${n} 份）`:""}`))}">${fmt(v,it.d)}</div>`;
     };
