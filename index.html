@@ -170,6 +170,34 @@ pre.demo{text-align:left;background:var(--white);border:2px solid var(--ink);bor
   .sec-head h2{font-size:18px;padding:6px 12px}
   .no{font-size:32px}
 }
+
+/* ---------- 管理者 ---------- */
+.wrap{position:relative}
+.admin-btn{position:absolute;top:0;right:0;font:inherit;font-weight:900;font-size:13px;letter-spacing:1px;color:#fff;background:var(--ink);
+  border:2px solid var(--ink);border-radius:999px;padding:6px 14px;cursor:pointer;box-shadow:3px 3px 0 rgba(0,0,0,.25)}
+.admin-btn:hover{background:#333}
+.admin-btn.on{background:var(--white);color:var(--ink)}
+.modal{position:fixed;inset:0;z-index:30;background:rgba(26,26,26,.55);display:flex;align-items:flex-start;justify-content:center;
+  padding:40px 16px;overflow-y:auto}
+.modal[hidden]{display:none}
+.modal .paper{width:100%;max-width:560px;margin:0}
+.modal h3{margin:0 0 6px;font-size:20px;font-weight:900}
+.modal .x{position:absolute;top:10px;right:12px;font:inherit;font-size:22px;font-weight:900;background:none;border:none;cursor:pointer;line-height:1}
+.modal .hint{color:var(--muted);font-size:13px;font-weight:500;line-height:1.6;margin:0 0 14px}
+.modal input[type=password]{width:100%;font:inherit;font-size:18px;border:2px solid var(--ink);border-radius:10px;padding:10px 12px;background:var(--white)}
+.modal .err-msg{color:#C0262D;font-weight:700;font-size:13px;min-height:20px;margin:6px 0}
+.mbtn{font:inherit;font-weight:900;font-size:15px;color:#fff;background:var(--ink);border:2px solid var(--ink);border-radius:10px;padding:8px 18px;cursor:pointer}
+.mbtn.ghost{background:var(--white);color:var(--ink)}
+.mbtn:disabled{opacity:.6;cursor:wait}
+.mrow-actions{display:flex;gap:8px;justify-content:space-between;flex-wrap:wrap;margin-top:14px}
+.sched{display:flex;flex-direction:column;gap:8px;max-height:52vh;overflow-y:auto;padding:2px}
+.srow{display:grid;grid-template-columns:175px 1fr 34px;gap:8px;align-items:center}
+.srow input{font:inherit;font-size:15px;border:2px solid var(--ink);border-radius:8px;padding:6px 8px;background:var(--white);width:100%;min-width:0}
+.srow.cur input{background:#FFF1E2;border-color:var(--orange-deep)}
+.srow .del{font:inherit;font-weight:900;font-size:16px;width:34px;height:34px;border:2px solid var(--ink);border-radius:8px;background:var(--paper);cursor:pointer}
+.srow .del:hover{background:#F6C3C3}
+.shead{display:grid;grid-template-columns:175px 1fr 34px;gap:8px;font-size:12px;font-weight:900;color:var(--muted)}
+@media (max-width:520px){ .srow,.shead{grid-template-columns:150px 1fr 34px} }
 </style>
 </head>
 <body>
@@ -179,6 +207,7 @@ pre.demo{text-align:left;background:var(--white);border:2px solid var(--ink);bor
 </div>
 
 <div class="wrap">
+  <button type="button" class="admin-btn" id="adminBtn">🔒 管理者登入</button>
   <div class="top-tag"><span class="m" id="tagMonth">—</span><span class="s">一般內科 × <b>教學部</b></span></div>
 
   <header class="hero">
@@ -272,6 +301,36 @@ pre.demo{text-align:left;background:var(--white);border:2px solid var(--ink);bor
   <div class="foot">奇美醫院教學部●一般內科</div>
 </div>
 <div class="toast" id="toast"></div>
+
+<!-- 管理者：登入 / 編輯 CR 排班 -->
+<div class="modal" id="adminModal" hidden role="dialog" aria-modal="true" aria-labelledby="adminTitle">
+  <section class="paper">
+    <button type="button" class="x" id="adminClose" aria-label="關閉">×</button>
+    <div id="adminLogin">
+      <h3 id="adminTitle">管理者登入</h3>
+      <p class="hint">登入後可編輯每月受評 CR 名單（寫入試算表「CR排班」分頁）。密碼設定在試算表「設定」分頁 B4。</p>
+      <form id="adminLoginForm">
+        <input type="password" id="adminPw" autocomplete="current-password" placeholder="管理者密碼">
+        <div class="err-msg" id="adminErr"></div>
+        <button type="submit" class="mbtn" id="adminLoginBtn">登入</button>
+      </form>
+    </div>
+    <div id="adminEdit" hidden>
+      <h3>每月 CR 名單</h3>
+      <p class="hint">一列一個月；同月多位 CR 用頓號（、）或逗號分隔。姓名留空＝該月尚未排定。按「儲存」才會寫入試算表。</p>
+      <div class="shead"><span>月份</span><span>總醫師</span><span></span></div>
+      <div class="sched" id="schedRows"></div>
+      <div class="mrow-actions">
+        <button type="button" class="mbtn ghost" id="addMonth">＋ 新增月份</button>
+        <span style="display:flex;gap:8px">
+          <button type="button" class="mbtn ghost" id="adminLogout">登出</button>
+          <button type="button" class="mbtn" id="adminSave">儲存</button>
+        </span>
+      </div>
+      <div class="err-msg" id="adminSaveErr"></div>
+    </div>
+  </section>
+</div>
 
 <script>
 /* ---------------- 題目（依原 Forms 欄位，欄名一字不改，方便與既有資料表/儀表板對接） ---------------- */
@@ -521,6 +580,122 @@ $("#form").addEventListener("submit", async e => {
   $("#form").style.display = "none"; $("#progress").style.display = "none";
   $("#doneScreen").style.display = "block"; window.scrollTo({top:0,behavior:"smooth"});
 });
+
+/* ---------------- 管理者：登入後編輯每月 CR 名單（密碼存在試算表「設定」B4） ---------------- */
+const ADMIN_KEY = "crEvalAdmin";
+const admin = {
+  get key(){ try{ return sessionStorage.getItem(ADMIN_KEY) || ""; }catch(e){ return ""; } },
+  set key(k){ try{ k ? sessionStorage.setItem(ADMIN_KEY, k) : sessionStorage.removeItem(ADMIN_KEY); }catch(e){} },
+};
+async function adminCall(action, extra){
+  if (!CONFIG.GAS_URL) throw new Error("尚未設定 GAS_URL");
+  // text/plain 不會觸發 CORS 預檢，Apps Script 可直接回應 JSON
+  const res = await fetch(CONFIG.GAS_URL, { method:"POST", headers:{"Content-Type":"text/plain;charset=utf-8"},
+    body: JSON.stringify(Object.assign({ action, key: admin.key }, extra || {})) });
+  return res.json();
+}
+function adminErrText(j){
+  if (j.error === "auth") return "密碼不正確";
+  if (j.error === "disabled") return "試算表「設定」B4 尚未設定管理者密碼";
+  return "失敗：" + (j.error || "未知錯誤");
+}
+function setAdminUI(){
+  const on = !!admin.key;
+  $("#adminBtn").textContent = on ? "🔓 管理 CR 名單" : "🔒 管理者登入";
+  $("#adminBtn").classList.toggle("on", on);
+}
+function openAdmin(){
+  $("#adminModal").hidden = false;
+  $("#adminErr").textContent = ""; $("#adminSaveErr").textContent = "";
+  if (admin.key) adminLoad(); else showAdminLogin();
+}
+function closeAdmin(){ $("#adminModal").hidden = true; }
+function showAdminLogin(){
+  $("#adminLogin").hidden = false; $("#adminEdit").hidden = true;
+  $("#adminPw").value = ""; setTimeout(() => $("#adminPw").focus(), 0);
+}
+function schedRow(month, names){
+  const cur = month === state.defaultMonth ? " cur" : "";
+  return `<div class="srow${cur}"><input type="month" class="s-m" value="${esc(month)}" placeholder="2026-10" aria-label="月份">
+    <input type="text" class="s-n" value="${esc(names)}" placeholder="總醫師姓名" aria-label="總醫師">
+    <button type="button" class="del" title="刪除這個月份" aria-label="刪除">×</button></div>`;
+}
+function renderSched(rows){
+  $("#schedRows").innerHTML = rows.map(r => schedRow(r.month, r.names.join("、"))).join("");
+  $("#adminLogin").hidden = true; $("#adminEdit").hidden = false;
+}
+async function adminLoad(){
+  $("#adminLogin").hidden = true; $("#adminEdit").hidden = false;
+  $("#schedRows").innerHTML = `<div style="font-weight:700;color:var(--muted)">載入中…</div>`;
+  try{
+    const j = await adminCall("adminLogin");
+    if (!j.ok){ admin.key = ""; setAdminUI(); showAdminLogin(); $("#adminErr").textContent = adminErrText(j); return; }
+    renderSched(j.rows);
+  }catch(e){ $("#adminSaveErr").textContent = "連線失敗：" + e.message; }
+}
+$("#adminBtn").addEventListener("click", openAdmin);
+$("#adminClose").addEventListener("click", closeAdmin);
+$("#adminModal").addEventListener("click", e => { if (e.target.id === "adminModal") closeAdmin(); });
+document.addEventListener("keydown", e => { if (e.key === "Escape" && !$("#adminModal").hidden) closeAdmin(); });
+
+$("#adminLoginForm").addEventListener("submit", async e => {
+  e.preventDefault();
+  const pw = $("#adminPw").value.trim();
+  if (!pw){ $("#adminErr").textContent = "請輸入密碼"; return; }
+  const btn = $("#adminLoginBtn"); btn.disabled = true; $("#adminErr").textContent = "";
+  try{
+    admin.key = pw;
+    const j = await adminCall("adminLogin");
+    if (!j.ok){ admin.key = ""; $("#adminErr").textContent = adminErrText(j); return; }
+    setAdminUI(); renderSched(j.rows);
+  }catch(err){ admin.key = ""; $("#adminErr").textContent = "連線失敗：" + err.message; }
+  finally{ btn.disabled = false; }
+});
+$("#adminLogout").addEventListener("click", () => { admin.key = ""; setAdminUI(); closeAdmin(); toast("已登出管理者"); });
+
+$("#schedRows").addEventListener("click", e => { if (e.target.classList.contains("del")) e.target.closest(".srow").remove(); });
+$("#addMonth").addEventListener("click", () => {
+  // 預設新增「最後一個月份的下一個月」
+  const ms = [...document.querySelectorAll("#schedRows .s-m")].map(i => i.value).filter(Boolean).sort();
+  let next = state.defaultMonth || ym(new Date());
+  if (ms.length){ const [y,m] = ms[ms.length-1].split("-").map(Number); next = ym(new Date(y, m, 1)); }
+  $("#schedRows").insertAdjacentHTML("beforeend", schedRow(next, ""));
+  const box = $("#schedRows"); box.scrollTop = box.scrollHeight;
+  box.lastElementChild.querySelector(".s-n").focus();
+});
+
+$("#adminSave").addEventListener("click", async () => {
+  const err = $("#adminSaveErr"); err.textContent = "";
+  const rows = [], seen = new Set();
+  for (const r of document.querySelectorAll("#schedRows .srow")){
+    const month = r.querySelector(".s-m").value.trim(), names = r.querySelector(".s-n").value.trim();
+    if (!month && !names) continue;                       // 整列空白就略過
+    if (!/^\d{4}-\d{2}$/.test(month)){ err.textContent = `月份格式需為 YYYY-MM：「${month || names}」`; return; }
+    if (seen.has(month)){ err.textContent = `月份重複：${monthLabel(month)}`; return; }
+    seen.add(month); rows.push({ month, names });
+  }
+  const btn = $("#adminSave"); btn.disabled = true; btn.textContent = "儲存中…";
+  try{
+    const j = await adminCall("adminSave", { rows });
+    if (!j.ok){
+      if (j.error === "auth"){ admin.key = ""; setAdminUI(); showAdminLogin(); }
+      err.textContent = adminErrText(j); return;
+    }
+    renderSched(j.rows);
+    // 立即套用到問卷畫面，並更新這台裝置的快取
+    const schedule = {};
+    j.rows.forEach(r => { if (r.names.length) schedule[r.month] = r.names; });
+    let cfg = null; try{ cfg = JSON.parse(localStorage.getItem(CACHE_KEY) || "null"); }catch(e){}
+    cfg = Object.assign({ openDay: CONFIG.OPEN_DAY, forceMonth: "" }, cfg || {}, { schedule });
+    try{ localStorage.setItem(CACHE_KEY, JSON.stringify(cfg)); }catch(e){}
+    const keep = state.month;
+    applyConfig(cfg);
+    if (!params.get("cr") && keep && schedule[keep]) setMonth(keep);
+    toast("✅ CR 名單已儲存到試算表");
+  }catch(e2){ err.textContent = "連線失敗：" + e2.message; }
+  finally{ btn.disabled = false; btn.textContent = "儲存"; }
+});
+setAdminUI();
 
 loadConfig();
 </script>
